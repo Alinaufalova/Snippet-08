@@ -9,13 +9,70 @@ type SnippetModel struct {
 }
 // This will insert a new snippet into the database.
 func (m *SnippetModel) Insert(title, content, expires string) (int, error) {
-	return 0, nil
+	stmt := `INSERT INTO snippets (title, content, created, expires)
+VALUES(?, ?, CURRENT_TIMESTAMP, DATE_ADD(CURRENT_TIMESTAMP(), INTERVAL '? DAY'))`
+
+	result, err := m.Pool.Exec(stmt, title, content, expires)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(id), nil
+
+	result, err = m.Pool.Exec(stmt, title, content, expires)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err = result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
+
 }
-// This will return a specific snippet based on its id.
+
 func (m *SnippetModel) Get(id int) (*models.Snippet, error) {
-	return nil, nil
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+WHERE expires > CURRENT_TIMESTAMP AND id = ?`
+
+	row := m.Pool.QueryRow(stmt, id)
+	s := &models.Snippet{}
+
 }
-// This will return the 10 most recently created snippets.
+
 func (m *SnippetModel) Latest() ([]*models.Snippet, error) {
-	return nil, nil
+	stmt := `SELECT id, title, content, created, expires FROM snippets
+WHERE expires > CURRENT_TIMESTAMP ORDER BY created DESC LIMIT 10`
+
+	rows, err := m.Pool.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	snippets := []*models.Snippet{}
+
+	for rows.Next() {
+		s := &models.Snippet{}
+
+		err = rows.Scan(&s.ID, &s.Title, &s.Content, &s.Created, &s.Expires)
+		if err != nil {
+			return nil, err
+		}
+
+		snippets = append(snippets, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return snippets, nil
 }
